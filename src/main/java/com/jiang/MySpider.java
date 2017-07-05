@@ -1,32 +1,49 @@
 package com.jiang;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 /**
  * Created by jiang on 17-7-1.
  */
 public class MySpider {
-    private static CloseableHttpClient httpClient = HttpClients.createDefault();
-
+    private static AtomicInteger num = new AtomicInteger(-5);
     public static void main(String[] args) {
-        HttpGet httpGet = new HttpGet("http://www.baidu.com");
+        if (args.length == 0)
+            args = new String[1];
+        args[0] = "4";
+
+        for (int i = 0;i<Integer.parseInt(args[0]);i++){
+            Thread thread = new Thread(new Runnable() {
+                public void run() {
+                    while (num.get() < 26600) {
+                        putUrlInRedis(num.addAndGet(5));
+                    }
+                }
+            });
+            thread.run();
+        }
+
+
+
+    }
+
+    private static void putUrlInRedis(int now){
         try {
-            HttpResponse httpResponse = httpClient.execute(httpGet);
-            HttpEntity httpEntity = httpResponse.getEntity();
-            if (httpEntity != null){
-                InputStream in = httpEntity.getContent();
-                int l;
-                byte[] tmp = new byte[2048];
-                while ((l = in.read(tmp)) != -1) {
-                    System.out.println(new String(tmp, 0, l, "utf-8"));
+            Document doc = Jsoup.connect("http://tieba.baidu.com/f?kw=%E9%A3%8E%E6%99%AF&ie=utf-8&pn="+now).userAgent("Mozilla").get();
+            Elements links =  doc.getElementsByTag("a");
+            for (Element link : links){
+                String linkHref = link.attr("href");
+                String pattern = "/p/.*";
+                if (Pattern.matches(pattern,linkHref)){
+                    System.out.println(linkHref);
                 }
             }
         } catch (IOException e) {
